@@ -7,7 +7,7 @@ import six
 from constance import config as site_config
 from django.core.cache import cache
 from django.db.models import Count, F, Prefetch, Q
-from django.http import HttpResponse, HttpResponseForbidden, 
+from django.http import HttpResponse, HttpResponseForbidden
 from django.utils.encoding import force_text
 from rest_framework import filters, viewsets
 from rest_framework.pagination import PageNumberPagination
