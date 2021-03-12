@@ -7,7 +7,7 @@ import six
 from constance import config as site_config
 from django.core.cache import cache
 from django.db.models import Count, F, Prefetch, Q
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseForbidden, 
 from django.utils.encoding import force_text
 from rest_framework import filters, viewsets
 from rest_framework.pagination import PageNumberPagination
@@ -424,9 +424,21 @@ class FaceListViewSet(viewsets.ModelViewSet):
     pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
-        queryset = Face.objects \
-        .filter(Q(photo__hidden=False) & Q(photo__owner=self.request.user)) \
-        .select_related('person').order_by('id')
+        # Todo: optimze query by only prefetching relevant models & fields
+        if not 'labeled' in self.kwargs.keys():
+            queryset = Face.objects.filter(
+               Q(photo__hidden=False) & Q(photo__owner=self.request.user)
+            ).select_related('person').order_by('id')
+        elif self.kwargs['labeled'].lower() == 'true' :
+            queryset = Face.objects.filter(
+               Q(photo__hidden=False) & Q(photo__owner=self.request.user) & Q(person_label_is_inferred=True)
+            ).select_related('person').order_by('id')
+        else:
+            queryset = Face.objects.filter(
+                Q(photo__hidden=False) & Q(photo__owner=self.request.user),
+                Q(person_label_is_inferred=False) | Q(person__name='unknown')
+            ).select_related('person').order_by('id')
+        return queryset
 
     @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
     def retrieve(self, *args, **kwargs):
@@ -435,53 +447,6 @@ class FaceListViewSet(viewsets.ModelViewSet):
     @cache_response(CACHE_TTL, key_func=CustomListKeyConstructor())
     def list(self, *args, **kwargs):
         return super(FaceListViewSet, self).list(*args, **kwargs)
-
-
-@six.add_metaclass(OptimizeRelatedModelViewSetMetaclass)
-class FaceInferredListViewSet(viewsets.ModelViewSet):
-    serializer_class = FaceListSerializer
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        # Todo: optimze query by only prefetching relevant models & fields
-        queryset = Face.objects.filter(
-            Q(photo__hidden=False) & Q(photo__owner=self.request.user) & Q(
-                person_label_is_inferred=True)).select_related(
-                    'person').order_by('id')
-        return queryset
-
-    @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
-    def retrieve(self, *args, **kwargs):
-        return super(FaceInferredListViewSet, self).retrieve(*args, **kwargs)
-
-    @cache_response(CACHE_TTL, key_func=CustomListKeyConstructor())
-    def list(self, *args, **kwargs):
-        return super(FaceInferredListViewSet, self).list(*args, **kwargs)
-
-
-@six.add_metaclass(OptimizeRelatedModelViewSetMetaclass)
-class FaceLabeledListViewSet(viewsets.ModelViewSet):
-    serializer_class = FaceListSerializer
-    pagination_class = StandardResultsSetPagination
-
-    def get_queryset(self):
-        # Todo: optimze query by only prefetching relevant models & fields
-        queryset = Face.objects.filter(
-            Q(photo__hidden=False) &
-            Q(photo__owner=self.request.user),
-            Q(person_label_is_inferred=False)
-            |
-            Q(person__name='unknown')).select_related('person').order_by('id')
-        return queryset
-
-    @cache_response(CACHE_TTL, key_func=CustomObjectKeyConstructor())
-    def retrieve(self, *args, **kwargs):
-        return super(FaceLabeledListViewSet, self).retrieve(*args, **kwargs)
-
-    @cache_response(CACHE_TTL, key_func=CustomListKeyConstructor())
-    def list(self, *args, **kwargs):
-        return super(FaceLabeledListViewSet, self).list(*args, **kwargs)
-
 
 @six.add_metaclass(OptimizeRelatedModelViewSetMetaclass)
 class FaceViewSet(viewsets.ModelViewSet):

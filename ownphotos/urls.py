@@ -170,14 +170,6 @@ router.register(
 
 router.register(r'api/photos', views.PhotoViewSet, basename='photo')
 
-router.register(
-    r'api/faces/inferred/list',
-    views.FaceInferredListViewSet,
-    basename='face')
-
-router.register(
-    r'api/faces/labeled/list', views.FaceLabeledListViewSet, basename='face')
-
 router.register(r'api/faces/list', views.FaceListViewSet, basename='face')
 
 router.register(
